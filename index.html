@@ -7,7 +7,7 @@
     <!-- A-Frame y MindAR -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.7/dist/mindar-image-aframe.prod.js"></script>
-    
+
     <!-- Física con Cannon.js -->
     <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
@@ -27,10 +27,13 @@
         font-size: 16px;
         z-index: 10;
       }
+      #shootBtn:disabled {
+        background: gray;
+      }
     </style>
   </head>
   <body>
-    <button id="shootBtn">Disparar</button>
+    <button id="shootBtn" disabled>Disparar</button>
 
     <a-scene
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes;"
@@ -49,7 +52,7 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <!-- Imagen trackeada -->
-      <a-entity mindar-image-target="targetIndex: 0">
+      <a-entity mindar-image-target="targetIndex: 0" id="target">
         <!-- Diana: plano con textura -->
         <a-plane
           id="diana"
@@ -78,17 +81,25 @@
 
     <script>
       const shootBtn = document.getElementById('shootBtn');
+      const targetEntity = document.querySelector('#target');
+
+      targetEntity.addEventListener('targetFound', () => {
+        shootBtn.disabled = false;
+      });
+
+      targetEntity.addEventListener('targetLost', () => {
+        shootBtn.disabled = true;
+      });
+
       shootBtn.addEventListener('click', () => {
         const dart = document.querySelector('#dardo');
         dart.setAttribute('visible', true);
 
-        // Reset position and rotation
         dart.setAttribute('position', { x: 0, y: 0, z: -1 });
         dart.setAttribute('rotation', { x: 0, y: 0, z: 0 });
 
-        // Aplicar impulso hacia adelante
         dart.addEventListener('body-loaded', () => {
-          dart.body.velocity.set(0, 0, 0); // Reiniciar velocidad previa
+          dart.body.velocity.set(0, 0, 0);
           dart.body.applyImpulse(
             new CANNON.Vec3(0, 0, 5),
             new CANNON.Vec3(0, 0, 0)
