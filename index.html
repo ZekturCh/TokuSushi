@@ -2,11 +2,11 @@
 <html>
   <head>
     <title>Dardo AR - Diana Web</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 
     <!-- A-Frame y MindAR -->
-    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.7/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <!-- Física con Cannon.js -->
     <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
@@ -32,28 +32,30 @@
       }
     </style>
   </head>
+
   <body>
     <button id="shootBtn" disabled>Disparar</button>
 
     <a-scene
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true;"
       embedded
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: true"
+      device-orientation-permission-ui="enabled: false"
       physics="gravity: -9.8"
-      renderer="colorManagement: true; antialias: true"
     >
       <a-assets>
-        <!-- Puedes usar una textura personalizada para la diana -->
-        <img id="diana-texture" src="diana-cuadro.png"/>
+        <!-- Textura de la diana -->
+        <img id="diana-texture" src="diana-cuadro.png" />
       </a-assets>
 
-      <!-- Cámara -->
-      <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
+      <!-- Cámara fija para WebAR -->
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Imagen trackeada -->
+      <!-- Contenedor del tracking de imagen -->
       <a-entity mindar-image-target="targetIndex: 0" id="target">
-        <!-- Diana: plano con textura -->
+        <!-- Diana: plano con textura trackeada -->
         <a-plane
           id="diana"
           width="1"
@@ -61,11 +63,10 @@
           src="#diana-texture"
           material="shader: flat"
           position="0 0 0"
-          rotation="0 0 0"
           static-body
         ></a-plane>
 
-        <!-- Dardo (inicialmente oculto y fuera de la vista) -->
+        <!-- Dardo: prisma alargado, oculto hasta el disparo -->
         <a-box
           id="dardo"
           depth="0.1"
@@ -83,28 +84,39 @@
       const shootBtn = document.getElementById('shootBtn');
       const targetEntity = document.querySelector('#target');
 
-      targetEntity.addEventListener('targetFound', () => {
-        shootBtn.disabled = false;
-      });
-
-      targetEntity.addEventListener('targetLost', () => {
-        shootBtn.disabled = true;
-      });
+      // Activar botón solo cuando la imagen objetivo esté en vista
+      targetEntity.addEventListener('targetFound', () => shootBtn.disabled = false);
+      targetEntity.addEventListener('targetLost', () => shootBtn.disabled = true);
 
       shootBtn.addEventListener('click', () => {
         const dart = document.querySelector('#dardo');
         dart.setAttribute('visible', true);
-
+        // Posicionar dardo frente a la cámara
         dart.setAttribute('position', { x: 0, y: 0, z: -1 });
         dart.setAttribute('rotation', { x: 0, y: 0, z: 0 });
 
-        dart.addEventListener('body-loaded', () => {
+        // Disparo con Física Cannon.js
+        if (dart.body) {
+          // Reiniciar cuerpo físico y aplicar impulso
+          dart.body.position.set(0, 0, -1);
           dart.body.velocity.set(0, 0, 0);
+          dart.body.angularVelocity.set(0, 0, 0);
           dart.body.applyImpulse(
             new CANNON.Vec3(0, 0, 5),
             new CANNON.Vec3(0, 0, 0)
           );
-        });
+        } else {
+          // Esperar a que el cuerpo físico se cargue
+          dart.addEventListener('body-loaded', () => {
+            dart.body.position.set(0, 0, -1);
+            dart.body.velocity.set(0, 0, 0);
+            dart.body.angularVelocity.set(0, 0, 0);
+            dart.body.applyImpulse(
+              new CANNON.Vec3(0, 0, 5),
+              new CANNON.Vec3(0, 0, 0)
+            );
+          }, { once: true });
+        }
       });
     </script>
   </body>
