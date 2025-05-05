@@ -49,7 +49,7 @@
       </a-assets>
 
       <!-- Cámara -->
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
 
       <!-- Imagen trackeada -->
       <a-entity mindar-image-target="targetIndex: 0" id="target">
@@ -91,30 +91,18 @@
         shootBtn.disabled = true;
       });
 
+      shootBtn.addEventListener('click', () => {
+        const dart = document.querySelector('#dardo');
+        dart.setAttribute('visible', true);
 
-shootBtn.addEventListener('click', () => {
-  const dart = document.querySelector('#dardo');
+        dart.setAttribute('position', { x: 0, y: 0, z: -1 });
+        dart.setAttribute('rotation', { x: 0, y: 0, z: 0 });
 
-  dart.setAttribute('visible', true);
-  dart.setAttribute('position', { x: 0, y: 0, z: -1 });
-  dart.setAttribute('rotation', { x: 0, y: 0, z: 0 });
-
-  // Espera un frame para asegurar que el dynamic-body esté activo
-  setTimeout(() => {
-    const body = dart.body;
-    if (body) {
-      body.velocity.set(0, 0, 0); // Reinicia velocidad
-      body.angularVelocity.set(0, 0, 0); // Reinicia giro
-      body.applyImpulse(
-        new CANNON.Vec3(0, 0, 5),
-        new CANNON.Vec3(0, 0, 0)
-      );
-    } else {
-      console.warn('El cuerpo del dardo aún no está listo');
-    }
-  }, 100); // Espera 100 ms (o más si es necesario)
-});
-
+        dart.addEventListener('body-loaded', () => {
+          dart.body.velocity.set(0, 0, 0);
+          dart.body.applyImpulse(
+            new CANNON.Vec3(0, 0, 5),
+            new CANNON.Vec3(0, 0, 0)
           );
         });
       });
