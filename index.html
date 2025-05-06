@@ -3,13 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Favicon vacío para evitar 404 -->
   <link rel="icon" href="data:;base64,=" />
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <title>Juego de Dardos AR</title>
   <style>
-    /* Estilos para el botón */
     #shootBtn {
       position: absolute;
       bottom: 20px;
@@ -31,7 +29,6 @@
   </style>
 </head>
 <body>
-  <!-- Botón de disparo -->
   <button id="shootBtn">Disparar</button>
 
   <a-scene
@@ -42,23 +39,11 @@
     device-orientation-permission-ui="enabled: false"
   >
     <a-assets>
-      <!-- Imagen de la diana a mostrar al trackear -->
       <img id="dianaImg" src="diana-cuadro.png" />
     </a-assets>
 
-    <!-- Cámara fija sin look-controls -->
-    <a-camera id="camera" position="0 0 0" look-controls="enabled: false">
-      <!-- Prisma/dardo fijado en el centro de la cámara -->
-      <a-entity
-        id="dart"
-        dart-shooter
-        geometry="primitive: cylinder; radius: 0.01; height: 0.2; segmentsRadial: 4"
-        material="color: #FF5722"
-        position="0 0 -0.5"
-      ></a-entity>
-    </a-camera>
+    <a-camera id="camera" position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- Target de la diana -->
     <a-entity mindar-image-target="targetIndex: 0">
       <a-plane
         src="#dianaImg"
@@ -71,23 +56,46 @@
   </a-scene>
 
   <script>
-    // Componente para controlar el disparo del dardo
     AFRAME.registerComponent('dart-shooter', {
       init: function () {
-        const dartEl = this.el;
+        const dartEl = document.createElement('a-entity');
+        const THREE = AFRAME.THREE;
+        dartEl.setAttribute('geometry', 'primitive: cone; radiusBottom: 0.02; radiusTop: 0; height: 1');
+        dartEl.setAttribute('material', 'color: #FF5722');
+        dartEl.setAttribute('scale', '0.2 0.2 0.2');
+        // Inicial: sin parent (se añadirá en shoot)
         const button = document.getElementById('shootBtn');
         button.addEventListener('click', () => {
-          // Deshabilitar botón para evitar disparos múltiples
           button.setAttribute('disabled', true);
-          // Animar el dardo hacia adelante en Z hasta un límite aproximado
+          const sceneEl = document.querySelector('a-scene');
+          const cameraEl = document.querySelector('#camera');
+          // Obtener posición y rotación mundial de la cámara
+          const worldPos = new THREE.Vector3();
+          cameraEl.object3D.getWorldPosition(worldPos);
+          const worldRot = new THREE.Euler();
+          cameraEl.object3D.getWorldRotation(worldRot);
+          // Añadir dardo a la escena en posición de la cámara
+          dartEl.object3D.position.copy(worldPos);
+          dartEl.object3D.rotation.copy(worldRot);
+          sceneEl.appendChild(dartEl);
+          // Calcular destino: 5 unidades adelante
+          const forward = new THREE.Vector3(0, 0, -1).applyEuler(worldRot);
+          const targetPos = worldPos.clone().add(forward.multiplyScalar(5));
+          // Animar posición mundial
           dartEl.setAttribute('animation__shoot', {
             property: 'position',
-            to: '0 0 -5',
+            to: `${targetPos.x} ${targetPos.y} ${targetPos.z}`,
             dur: 1500,
             easing: 'linear'
           });
         });
       }
+    });
+
+    // Inicializar componente tras cargar A-Frame
+    document.addEventListener('DOMContentLoaded', () => {
+      const scene = document.querySelector('a-scene');
+      scene.setAttribute('dart-shooter', '');
     });
   </script>
 </body>
