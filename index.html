@@ -1,91 +1,24 @@
-<!DOCTYPE html>
 <html>
   <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dardo AR Simplificado</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-    <style>
-      body { margin: 0; overflow: hidden; }
-      #shootBtn {
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #e63946;
-        color: white;
-        padding: 12px 24px;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        z-index: 10;
-      }
-    </style>
   </head>
   <body>
-    <button id="shootBtn">Disparar</button>
-
-    <a-scene
-      mindar-image="imageTargetSrc: ./targets.mind;"
-      color-space="sRGB"
-      renderer="colorManagement: true, physicallyCorrectLights: true"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: true"
-      embedded
-    >
+    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
       <a-assets>
-        <img id="diana-texture" src="diana-cuadro.png" />
+	<img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" />
+	<a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
       </a-assets>
 
-      <!-- Cámara -->
-      <a-camera position="0 0 0" look-controls="enabled: false" id="camera"></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Trackeo de imagen -->
       <a-entity mindar-image-target="targetIndex: 0">
-        <!-- Diana -->
-        <a-plane
-          src="#diana-texture"
-          position="0 0 0"
-          width="1"
-          height="1"
-          rotation="0 0 0"
-        ></a-plane>
+        <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
+        <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#avatarModel"
+          animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate"
+        >
       </a-entity>
-
-      <!-- Dardo, inicialmente invisible -->
-      <a-box
-        id="dardo"
-        color="#00f"
-        width="0.1"
-        height="0.1"
-        depth="0.4"
-        visible="false"
-        position="0 0 -1"
-      ></a-box>
     </a-scene>
-
-    <script>
-      const shootBtn = document.getElementById('shootBtn');
-      const dart = document.querySelector('#dardo');
-      const camera = document.querySelector('#camera');
-
-      shootBtn.addEventListener('click', () => {
-        // Aparecer el dardo y resetear su posición delante de la cámara
-        dart.setAttribute('visible', true);
-        dart.setAttribute('position', { x: 0, y: 0, z: -1 });
-
-        // Hacer que el dardo sea hijo de la cámara para que apunte siempre al centro
-        camera.appendChild(dart);
-
-        // Animar hacia adelante
-        dart.setAttribute('animation', {
-          property: 'position',
-          to: '0 0 -5',
-          dur: 800,
-          easing: 'linear'
-        });
-      });
-    </script>
   </body>
 </html>
-
