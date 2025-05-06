@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Favicon vacío para evitar 404 -->
+  <link rel="icon" href="data:;base64,=" />
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <title>Juego de Dardos AR</title>
@@ -33,14 +35,14 @@
   <button id="shootBtn">Disparar</button>
 
   <a-scene
-   
     mindar-image="imageTargetSrc: targets.mind;"
     color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights"
+    renderer="colorManagement: true"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
   >
     <a-assets>
+      <!-- Imagen de la diana a mostrar al trackear -->
       <img id="dianaImg" src="diana-cuadro.png" />
     </a-assets>
 
@@ -56,15 +58,15 @@
       ></a-entity>
     </a-camera>
 
-    <!-- Target de la carta -->
+    <!-- Target de la diana -->
     <a-entity mindar-image-target="targetIndex: 0">
-      <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
-      <a-gltf-model
-        src="#avatarModel"
-        position="0 0 0.1"
-        scale="0.005 0.005 0.005"
-        animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate"
-      ></a-gltf-model>
+      <a-plane
+        src="#dianaImg"
+        position="0 0 0"
+        rotation="0 0 0"
+        width="1"
+        height="1"
+      ></a-plane>
     </a-entity>
   </a-scene>
 
