@@ -32,7 +32,7 @@
   <button id="shootBtn">Disparar</button>
 
   <a-scene
-    mindar-image="imageTargetSrc: targets.mind;"
+    mindar-image="imageTargetSrc: targets.mind; uiLoading: false; uiScanning: false;"
     color-space="sRGB"
     renderer="colorManagement: true"
     vr-mode-ui="enabled: false"
@@ -46,6 +46,7 @@
 
     <a-entity mindar-image-target="targetIndex: 0">
       <a-plane
+        id="dianaPlane"
         src="#dianaImg"
         position="0 0 0"
         rotation="0 0 0"
@@ -56,46 +57,62 @@
   </a-scene>
 
   <script>
-    AFRAME.registerComponent('dart-shooter', {
-      init: function () {
-        const dartEl = document.createElement('a-entity');
-        const THREE = AFRAME.THREE;
-        dartEl.setAttribute('geometry', 'primitive: cone; radiusBottom: 0.02; radiusTop: 0; height: 1');
-        dartEl.setAttribute('material', 'color: #FF5722');
-        dartEl.setAttribute('scale', '0.2 0.2 0.2');
-        // Inicial: sin parent (se añadirá en shoot)
-        const button = document.getElementById('shootBtn');
+    document.addEventListener('DOMContentLoaded', () => {
+      const THREE = AFRAME.THREE;
+      const sceneEl = document.querySelector('a-scene');
+      const cameraEl = document.getElementById('camera');
+      const button = document.getElementById('shootBtn');
+      const planeEl = document.getElementById('dianaPlane');
+
+      sceneEl.addEventListener('loaded', () => {
         button.addEventListener('click', () => {
           button.setAttribute('disabled', true);
-          const sceneEl = document.querySelector('a-scene');
-          const cameraEl = document.querySelector('#camera');
+
+          // Crear el cono (dardo)
+          const dart = document.createElement('a-cone');
+          dart.setAttribute('radius-bottom', 0.02);
+          dart.setAttribute('radius-top', 0);
+          dart.setAttribute('height', 1);
+          dart.setAttribute('color', '#FF5722');
+          dart.setAttribute('scale', '0.2 0.2 0.2');
+
           // Obtener posición y rotación mundial de la cámara
           const worldPos = new THREE.Vector3();
           cameraEl.object3D.getWorldPosition(worldPos);
           const worldRot = new THREE.Euler();
           cameraEl.object3D.getWorldRotation(worldRot);
-          // Añadir dardo a la escena en posición de la cámara
-          dartEl.object3D.position.copy(worldPos);
-          dartEl.object3D.rotation.copy(worldRot);
-          sceneEl.appendChild(dartEl);
-          // Calcular destino: 5 unidades adelante
-          const forward = new THREE.Vector3(0, 0, -1).applyEuler(worldRot);
-          const targetPos = worldPos.clone().add(forward.multiplyScalar(5));
-          // Animar posición mundial
-          dartEl.setAttribute('animation__shoot', {
-            property: 'position',
-            to: `${targetPos.x} ${targetPos.y} ${targetPos.z}`,
-            dur: 1500,
-            easing: 'linear'
-          });
-        });
-      }
-    });
 
-    // Inicializar componente tras cargar A-Frame
-    document.addEventListener('DOMContentLoaded', () => {
-      const scene = document.querySelector('a-scene');
-      scene.setAttribute('dart-shooter', '');
+          // Raycaster desde cámara hacia adelante
+          const direction = new THREE.Vector3(0, 0, -1).applyEuler(worldRot).normalize();
+          const raycaster = new THREE.Raycaster(worldPos, direction);
+
+          // Obtener mesh del plano de la diana
+          const planeMesh = planeEl.getObject3D('mesh');
+          if (!planeMesh) {
+            console.warn('Mesh de la diana no encontrado');
+            return;
+          }
+
+          // Calcular intersección
+          const intersects = raycaster.intersectObject(planeMesh, true);
+          if (intersects.length > 0) {
+            const hit = intersects[0];
+            // Posición de impacto en coordenadas globales
+            const hitPoint = hit.point;
+
+            // Añadir dardo y posicionar en punto de impacto
+            sceneEl.appendChild(dart);
+            dart.object3D.position.copy(hitPoint);
+
+            // Orientar dardo para que apunte contra la superficie
+            const normal = hit.face.normal.clone().transformDirection(planeEl.object3D.matrixWorld);
+            dart.object3D.lookAt(hitPoint.clone().add(normal));
+
+          } else {
+            console.log('No impactó la diana');
+          }
+        });
+      });
     });
   </script>
 </body>
