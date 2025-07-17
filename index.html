@@ -2,118 +2,134 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="data:;base64,=" />
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-  <title>Juego de Dardos AR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Paneles 3D con Modelos</title>
   <style>
-    #shootBtn {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 12px 24px;
-      font-size: 18px;
-      background: #ff5722;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      z-index: 999;
-    }
-    #shootBtn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    body { margin: 0; background: #111; }
+    html, body { height: 300vh; }
+    canvas { display: block; position: fixed; top: 0; left: 0; }
   </style>
 </head>
 <body>
-  <button id="shootBtn">Disparar</button>
+<script type="module">
+  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js';
+  import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/loaders/GLTFLoader.js';
 
-  <a-scene
-    mindar-image="imageTargetSrc: targets.mind; uiLoading: false; uiScanning: false;"
-    color-space="sRGB"
-    renderer="colorManagement: true"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false"
-  >
-    <a-assets>
-      <img id="dianaImg" src="diana-cuadro.png" />
-    </a-assets>
+  // Escena
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x111111);
 
-    <a-camera id="camera" position="0 0 0" look-controls="enabled: false"></a-camera>
+  // Cámara
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
+  camera.position.set(0, 2, 12);
 
-    <a-entity mindar-image-target="targetIndex: 0">
-      <a-plane
-        id="dianaPlane"
-        src="#dianaImg"
-        position="0 0 0"
-        rotation="0 0 0"
-        width="1"
-        height="1"
-      ></a-plane>
-    </a-entity>
-  </a-scene>
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const THREE = AFRAME.THREE;
-      const sceneEl = document.querySelector('a-scene');
-      const cameraEl = document.getElementById('camera');
-      const button = document.getElementById('shootBtn');
-      const planeEl = document.getElementById('dianaPlane');
+  // Luz
+  const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+  light.position.set(0, 10, 0);
+  scene.add(light);
 
-      sceneEl.addEventListener('loaded', () => {
-        button.addEventListener('click', () => {
-          button.setAttribute('disabled', true);
+  // Piso
+  const gridFloor = new THREE.GridHelper(500, 100, 0xffffff, 0xffffff);
+  gridFloor.material.opacity = 0.15;
+  gridFloor.material.transparent = true;
+  scene.add(gridFloor);
 
-          // Crear el cono (dardo)
-          const dart = document.createElement('a-cone');
-          dart.setAttribute('radius-bottom', 0.02);
-          dart.setAttribute('radius-top', 0);
-          dart.setAttribute('height', 1);
-          dart.setAttribute('color', '#FF5722');
-          dart.setAttribute('scale', '0.2 0.2 0.2');
+  // Loader para modelos
+  const loader = new GLTFLoader();
 
-          // Obtener posición y rotación mundial de la cámara
-          const worldPos = new THREE.Vector3();
-          cameraEl.object3D.getWorldPosition(worldPos);
-          const worldRot = new THREE.Euler();
-          cameraEl.object3D.getWorldRotation(worldRot);
+  function createPanel(modelPath, text, side, zPos) {
+    const group = new THREE.Group();
 
-          // Raycaster desde cámara hacia adelante
-          const direction = new THREE.Vector3(0, 0, -1).applyEuler(worldRot).normalize();
-          const raycaster = new THREE.Raycaster(worldPos, direction);
+    // Texto (Canvas)
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 160;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 34px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 
-          // Obtener mesh del plano de la diana
-          const planeMesh = planeEl.getObject3D('mesh');
-          if (!planeMesh) {
-            console.warn('Mesh de la diana no encontrado');
-            return;
-          }
+    const textTexture = new THREE.CanvasTexture(canvas);
+    const textMaterial = new THREE.MeshBasicMaterial({ map: textTexture, transparent: true, opacity: 0 });
+    const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), textMaterial);
+    textMesh.position.set(0, -1, 0);
+    group.add(textMesh);
 
-          // Calcular intersección
-          const intersects = raycaster.intersectObject(planeMesh, true);
-          if (intersects.length > 0) {
-            const hit = intersects[0];
-            // Posición de impacto en coordenadas globales
-            const hitPoint = hit.point;
+    // Modelo 3D
+    loader.load(modelPath, (gltf) => {
+      const model = gltf.scene;
+      model.scale.set(1.5, 1.5, 1.5);
+      model.position.y = 1.5;
+      group.add(model);
 
-            // Añadir dardo y posicionar en punto de impacto
-            sceneEl.appendChild(dart);
-            dart.object3D.position.copy(hitPoint);
+      // Rotación animada
+      model.userData.rotate = true;
+    });
 
-            // Orientar dardo para que apunte contra la superficie
-            const normal = hit.face.normal.clone().transformDirection(planeEl.object3D.matrixWorld);
-            dart.object3D.lookAt(hitPoint.clone().add(normal));
+    // Posición e inclinación
+    group.position.set(side, 2, zPos);
+    group.rotation.y = side < 0 ? Math.PI / 8 : -Math.PI / 8;
 
-          } else {
-            console.log('No impactó la diana');
-          }
-        });
+    scene.add(group);
+    return { group, textMaterial };
+  }
+
+  const panelsData = [
+    { model: 'model1.glb', text: 'Experiencias VR' },
+    { model: 'model2.glb', text: 'Contenido Marca' },
+    { model: 'model3.glb', text: 'Económico' },
+    { model: 'model4.glb', text: 'Mundo Paralelo' }
+  ];
+
+  const panels = [];
+  panelsData.forEach((panel, i) => {
+    const side = i % 2 === 0 ? -5 : 5;
+    const { group, textMaterial } = createPanel(panel.model, panel.text, side, -i * 15 - 15);
+    panels.push({ group, textMaterial });
+  });
+
+  // Scroll
+  let scrollProgress = 0;
+  window.addEventListener('scroll', () => {
+    const maxScroll = document.body.scrollHeight - window.innerHeight;
+    scrollProgress = maxScroll > 0 ? window.scrollY / maxScroll : 0;
+  });
+
+  // Animación
+  function animate() {
+    requestAnimationFrame(animate);
+    const targetZ = 12 - scrollProgress * 100;
+    camera.position.z += (targetZ - camera.position.z) * 0.08;
+
+    panels.forEach(panel => {
+      const distance = Math.abs(camera.position.z - panel.group.position.z);
+      const opacity = THREE.MathUtils.clamp(1 - distance / 45, 0, 1);
+      panel.textMaterial.opacity = opacity;
+
+      // Rotación de modelos si están cerca
+      panel.group.children.forEach(child => {
+        if (child.userData.rotate) child.rotation.y += 0.01;
       });
     });
-  </script>
+
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Resize
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
 </body>
 </html>
+
