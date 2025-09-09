@@ -1,135 +1,93 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Paneles 3D con Modelos</title>
-  <style>
-    body { margin: 0; background: #111; }
-    html, body { height: 300vh; }
-    canvas { display: block; position: fixed; top: 0; left: 0; }
-  </style>
-</head>
-<body>
-<script type="module">
-  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js';
-  import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/loaders/GLTFLoader.js';
+  <head>
+    <meta charset="UTF-8">
+    <title>Caballo AR</title>
+    <style>
+      body { margin: 0; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
+      import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
+      import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
 
-  // Escena
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x111111);
+      let scene, camera, renderer;
+      let horse, mixer, clock = new THREE.Clock();
+      let hitTestSource = null, localSpace = null, anchored = false;
 
-  // Cámara
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
-  camera.position.set(0, 2, 12);
+      init();
 
-  // Renderer
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
+      function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera();
 
-  // Luz
-  const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
-  light.position.set(0, 10, 0);
-  scene.add(light);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        document.body.appendChild(renderer.domElement);
 
-  // Piso
-  const gridFloor = new THREE.GridHelper(500, 100, 0xffffff, 0xffffff);
-  gridFloor.material.opacity = 0.15;
-  gridFloor.material.transparent = true;
-  scene.add(gridFloor);
+        document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
-  // Loader para modelos
-  const loader = new GLTFLoader();
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+        scene.add(light);
 
-  function createPanel(modelPath, text, side, zPos) {
-    const group = new THREE.Group();
+        // 🔹 Cargar caballo animado (ejemplo GLB público)
+        const loader = new GLTFLoader();
+        loader.load('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Horse/glTF-Binary/Horse.glb',
+          (gltf) => {
+            horse = gltf.scene;
+            horse.scale.set(0.01, 0.01, 0.01); // ajustar tamaño
+            horse.visible = false;
+            scene.add(horse);
 
-    // Texto (Canvas)
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 160;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 34px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            mixer = new THREE.AnimationMixer(horse);
+            if (gltf.animations.length > 0) {
+              gltf.animations.forEach(clip => mixer.clipAction(clip).play());
+            }
+          },
+          undefined,
+          (error) => console.error('Error al cargar el modelo:', error)
+        );
 
-    const textTexture = new THREE.CanvasTexture(canvas);
-    const textMaterial = new THREE.MeshBasicMaterial({ map: textTexture, transparent: true, opacity: 0 });
-    const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), textMaterial);
-    textMesh.position.set(0, -1, 0);
-    group.add(textMesh);
+        renderer.setAnimationLoop(render);
+      }
 
-    // Modelo 3D
-    loader.load(modelPath, (gltf) => {
-      const model = gltf.scene;
-      model.scale.set(1.5, 1.5, 1.5);
-      model.position.y = 1.5;
-      group.add(model);
+      async function onSessionStart(session) {
+        const viewerSpace = await session.requestReferenceSpace('viewer');
+        hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+        localSpace = await session.requestReferenceSpace('local');
+      }
 
-      // Rotación animada
-      model.userData.rotate = true;
-    });
+      function render(timestamp, frame) {
+        if (frame && hitTestSource && !anchored) {
+          const hitTestResults = frame.getHitTestResults(hitTestSource);
+          if (hitTestResults.length > 0) {
+            const pose = hitTestResults[0].getPose(localSpace);
+            if (horse) {
+              horse.position.set(
+                pose.transform.position.x,
+                pose.transform.position.y,
+                pose.transform.position.z
+              );
+              horse.visible = true;
+              anchored = true;
+            }
+          }
+        }
 
-    // Posición e inclinación
-    group.position.set(side, 2, zPos);
-    group.rotation.y = side < 0 ? Math.PI / 8 : -Math.PI / 8;
+        const delta = clock.getDelta();
+        if (mixer) mixer.update(delta);
 
-    scene.add(group);
-    return { group, textMaterial };
-  }
+        renderer.render(scene, camera);
+      }
 
-  const panelsData = [
-    { model: 'model1.glb', text: 'Experiencias VR' },
-    { model: 'model2.glb', text: 'Contenido Marca' },
-    { model: 'model3.glb', text: 'Económico' },
-    { model: 'model4.glb', text: 'Mundo Paralelo' }
-  ];
-
-  const panels = [];
-  panelsData.forEach((panel, i) => {
-    const side = i % 2 === 0 ? -5 : 5;
-    const { group, textMaterial } = createPanel(panel.model, panel.text, side, -i * 15 - 15);
-    panels.push({ group, textMaterial });
-  });
-
-  // Scroll
-  let scrollProgress = 0;
-  window.addEventListener('scroll', () => {
-    const maxScroll = document.body.scrollHeight - window.innerHeight;
-    scrollProgress = maxScroll > 0 ? window.scrollY / maxScroll : 0;
-  });
-
-  // Animación
-  function animate() {
-    requestAnimationFrame(animate);
-    const targetZ = 12 - scrollProgress * 100;
-    camera.position.z += (targetZ - camera.position.z) * 0.08;
-
-    panels.forEach(panel => {
-      const distance = Math.abs(camera.position.z - panel.group.position.z);
-      const opacity = THREE.MathUtils.clamp(1 - distance / 45, 0, 1);
-      panel.textMaterial.opacity = opacity;
-
-      // Rotación de modelos si están cerca
-      panel.group.children.forEach(child => {
-        if (child.userData.rotate) child.rotation.y += 0.01;
+      renderer.xr.addEventListener("sessionstart", () => {
+        onSessionStart(renderer.xr.getSession());
       });
-    });
-
-    renderer.render(scene, camera);
-  }
-  animate();
-
-  // Resize
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-</script>
-</body>
+    </script>
+  </body>
 </html>
 
