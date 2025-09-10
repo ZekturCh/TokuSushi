@@ -1,100 +1,284 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
+<head>
     <meta charset="UTF-8">
-    <title>Caballo AR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realidad Aumentada - Caballo en Superficie Verde</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
     <style>
-      body { margin: 0; overflow: hidden; }
-      canvas { display: block; }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #000;
+        }
+        .arjs-loader {
+            height: 100vh;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+        }
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            z-index: 100;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .loading-text {
+            margin-top: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+        }
+        .debug-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 99;
+            display: none;
+        }
+        .toggle-debug {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            z-index: 99;
+            cursor: pointer;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
+</head>
+<body>
+    <div class="arjs-loader">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Cargando realidad aumentada...</div>
+    </div>
     
-      <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js"
-    }
-  }
-  </script>
-  </head>
-  <body>
-    <script type="module">
-      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js';
-      import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
-      import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
+    <button class="toggle-debug" onclick="toggleDebug()">Debug</button>
+    <div class="debug-panel" id="debugPanel">
+        <div>Estado: <span id="status">Buscando superficie verde...</span></div>
+        <div>Coordenadas: <span id="coordinates">X: 0, Y: 0, Z: 0</span></div>
+    </div>
 
-      let scene, camera, renderer;
-      let horse, mixer, clock = new THREE.Clock();
-      let hitTestSource = null, localSpace = null, anchored = false;
+    <a-scene
+        vr-mode-ui="enabled: false"
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false;"
+        renderer="logarithmicDepthBuffer: true;"
+        color-detector
+        stats
+    >
+        <!-- Luz ambiental -->
+        <a-light type="ambient" color="#ccc"></a-light>
+        <!-- Luz direccional -->
+        <a-light type="directional" color="#fff" intensity="0.5" position="-1 1 0"></a-light>
+        
+        <!-- Modelo 3D del caballo con animación -->
+        <a-entity
+            id="horse"
+            position="0 -10 0"  <!-- Inicialmente oculto -->
+            scale="0.02 0.02 0.02"
+            animation-mixer="clip: *; loop: repeat"
+            gltf-model="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/assets/models/Horse.glb"
+            visible="false"
+        ></a-entity>
+        
+        <!-- Cámara para realidad aumentada -->
+        <a-entity camera></a-entity>
+    </a-scene>
+    
+    <div class="instructions">
+        <h3>Instrucciones:</h3>
+        <p>Busca una superficie verde (césped, papel, etc.) y apunta la cámara hacia ella.</p>
+        <p>El caballo aparecerá automáticamente y permanecerá en esa posición.</p>
+        <p>Si te alejas, el caballo permanecerá en su lugar hasta que regreses.</p>
+    </div>
 
-      init();
-
-      function init() {
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera();
-
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.xr.enabled = true;
-        document.body.appendChild(renderer.domElement);
-
-        document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
-
-        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
-        scene.add(light);
-
-        // 🔹 Cargar caballo animado (ejemplo GLB público)
-        const loader = new GLTFLoader();
-        loader.load(
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Fox/glTF-Binary/Fox.glb',
-  (gltf) => {
-    horse = gltf.scene;
-    horse.scale.set(0.01, 0.01, 0.01);
-    horse.visible = false;
-    scene.add(horse);
-
-    mixer = new THREE.AnimationMixer(horse);
-    if (gltf.animations.length > 0) {
-      gltf.animations.forEach(clip => mixer.clipAction(clip).play());
-    }
-  }
-);
-
-        renderer.setAnimationLoop(render);
-      }
-
-      async function onSessionStart(session) {
-        const viewerSpace = await session.requestReferenceSpace('viewer');
-        hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-        localSpace = await session.requestReferenceSpace('local');
-      }
-
-      function render(timestamp, frame) {
-        if (frame && hitTestSource && !anchored) {
-          const hitTestResults = frame.getHitTestResults(hitTestSource);
-          if (hitTestResults.length > 0) {
-            const pose = hitTestResults[0].getPose(localSpace);
-            if (horse) {
-              horse.position.set(
-                pose.transform.position.x,
-                pose.transform.position.y,
-                pose.transform.position.z
-              );
-              horse.visible = true;
-              anchored = true;
+    <script>
+        // Componente personalizado para detectar color verde
+        AFRAME.registerComponent('color-detector', {
+            init: function () {
+                // Variables para el estado y seguimiento
+                this.greenSurfaceFound = false;
+                this.horse = document.querySelector('#horse');
+                this.camera = document.querySelector('[camera]');
+                this.canvas = document.createElement('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.video = document.querySelector('video');
+                
+                // Ocultar el loader cuando la escena esté cargada
+                this.el.addEventListener('loaded', () => {
+                    document.querySelector('.arjs-loader').style.display = 'none';
+                    
+                    // Esperar a que el video esté listo
+                    setTimeout(() => {
+                        this.setupColorDetection();
+                    }, 2000);
+                });
+            },
+            
+            setupColorDetection: function() {
+                this.video = document.querySelector('video');
+                if (!this.video) {
+                    console.error("No se encontró el elemento de video");
+                    return;
+                }
+                
+                // Configurar dimensiones del canvas
+                this.canvas.width = 160;  // Reducir resolución para mejor rendimiento
+                this.canvas.height = 120;
+                
+                // Iniciar detección
+                this.detectGreenSurface();
+            },
+            
+            detectGreenSurface: function() {
+                if (!this.video || this.video.readyState !== 4) {
+                    requestAnimationFrame(this.detectGreenSurface.bind(this));
+                    return;
+                }
+                
+                try {
+                    // Dibujar el frame actual del video en el canvas
+                    this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+                    
+                    // Obtener datos de la imagen
+                    const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                    const data = imageData.data;
+                    
+                    // Contadores para píxeles verdes
+                    let greenPixels = 0;
+                    let centerX = 0;
+                    let centerY = 0;
+                    let count = 0;
+                    
+                    // Analizar píxeles para detectar verde
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        
+                        // Detectar tonos verdes (rango amplio)
+                        if (g > r + 30 && g > b + 30 && g > 80) {
+                            greenPixels++;
+                            
+                            // Calcular posición del píxel
+                            const pixelIndex = i / 4;
+                            const x = pixelIndex % this.canvas.width;
+                            const y = Math.floor(pixelIndex / this.canvas.width);
+                            
+                            centerX += x;
+                            centerY += y;
+                            count++;
+                        }
+                    }
+                    
+                    // Si se detecta suficiente superficie verde
+                    if (greenPixels > 100 && count > 0) {
+                        centerX = centerX / count;
+                        centerY = centerY / count;
+                        
+                        if (!this.greenSurfaceFound) {
+                            this.placeHorseAtGreenSurface(centerX, centerY);
+                            this.greenSurfaceFound = true;
+                        }
+                        
+                        document.getElementById('status').textContent = 'Superficie verde detectada';
+                    } else {
+                        document.getElementById('status').textContent = 'Buscando superficie verde...';
+                    }
+                    
+                } catch (error) {
+                    console.error("Error en detección de color:", error);
+                }
+                
+                // Continuar el bucle de detección
+                requestAnimationFrame(this.detectGreenSurface.bind(this));
+            },
+            
+            placeHorseAtGreenSurface: function(x, y) {
+                // Hacer visible el caballo
+                this.horse.setAttribute('visible', 'true');
+                
+                // Posicionar el caballo frente a la cámara
+                const cameraPos = this.camera.getAttribute('position');
+                const cameraRotation = this.camera.getAttribute('rotation');
+                
+                // Calcular posición basada en la cámara
+                const distance = 1.5; // Distancia frente a la cámara
+                const radY = cameraRotation.y * Math.PI / 180;
+                
+                const newX = cameraPos.x - Math.sin(radY) * distance;
+                const newZ = cameraPos.z - Math.cos(radY) * distance;
+                
+                this.horse.setAttribute('position', {
+                    x: newX,
+                    y: cameraPos.y - 0.5, // Un poco más abajo que la cámara
+                    z: newZ
+                });
+                
+                // Rotar el caballo para que mire hacia la cámara
+                this.horse.setAttribute('rotation', {
+                    x: 0,
+                    y: cameraRotation.y + 180,
+                    z: 0
+                });
+                
+                // Actualizar panel de debug
+                document.getElementById('coordinates').textContent = 
+                    `X: ${newX.toFixed(2)}, Y: ${(cameraPos.y - 0.5).toFixed(2)}, Z: ${newZ.toFixed(2)}`;
+                
+                console.log("Caballo colocado en superficie verde");
             }
-          }
+        });
+
+        // Función para mostrar/ocultar panel de debug
+        function toggleDebug() {
+            const debugPanel = document.getElementById('debugPanel');
+            debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
         }
 
-        const delta = clock.getDelta();
-        if (mixer) mixer.update(delta);
-
-        renderer.render(scene, camera);
-      }
-
-      renderer.xr.addEventListener("sessionstart", () => {
-        onSessionStart(renderer.xr.getSession());
-      });
+        // Inicializar panel de debug como oculto
+        window.onload = function() {
+            document.getElementById('debugPanel').style.display = 'none';
+        };
     </script>
-  </body>
+</body>
 </html>
-
