@@ -44,21 +44,20 @@
 
         // 🔹 Cargar caballo animado (ejemplo GLB público)
         const loader = new GLTFLoader();
-        loader.load('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Horse/glTF-Binary/Horse.glb',
-          (gltf) => {
-            horse = gltf.scene;
-            horse.scale.set(0.01, 0.01, 0.01); // ajustar tamaño
-            horse.visible = false;
-            scene.add(horse);
+        loader.load(
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Fox/glTF-Binary/Fox.glb',
+  (gltf) => {
+    horse = gltf.scene;
+    horse.scale.set(0.01, 0.01, 0.01);
+    horse.visible = false;
+    scene.add(horse);
 
-            mixer = new THREE.AnimationMixer(horse);
-            if (gltf.animations.length > 0) {
-              gltf.animations.forEach(clip => mixer.clipAction(clip).play());
-            }
-          },
-          undefined,
-          (error) => console.error('Error al cargar el modelo:', error)
-        );
+    mixer = new THREE.AnimationMixer(horse);
+    if (gltf.animations.length > 0) {
+      gltf.animations.forEach(clip => mixer.clipAction(clip).play());
+    }
+  }
+);
 
         renderer.setAnimationLoop(render);
       }
