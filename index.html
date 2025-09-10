@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realidad Aumentada - Caballo en Superficie Verde</title>
+    <title>Realidad Aumentada - Caballo 3D en el Suelo</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
@@ -65,7 +65,6 @@
             border-radius: 5px;
             font-size: 14px;
             z-index: 99;
-            display: none;
         }
         .toggle-debug {
             position: absolute;
@@ -79,6 +78,17 @@
             z-index: 99;
             cursor: pointer;
         }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: #ff9900;
+        }
+        .status-ready {
+            background-color: #4CAF50;
+        }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -91,10 +101,11 @@
         <div class="loading-text">Cargando realidad aumentada...</div>
     </div>
     
-    <button class="toggle-debug" onclick="toggleDebug()">Debug</button>
+    <button class="toggle-debug" onclick="toggleDebug()">Ocultar Debug</button>
     <div class="debug-panel" id="debugPanel">
-        <div>Estado: <span id="status">Buscando superficie verde...</span></div>
-        <div>Coordenadas: <span id="coordinates">X: 0, Y: 0, Z: 0</span></div>
+        <div><span class="status-indicator" id="statusIndicator"></span>Estado: <span id="status">Inicializando...</span></div>
+        <div>Posición: <span id="coordinates">X: 0, Y: 0, Z: 0</span></div>
+        <div>Distancia: <span id="distance">0 m</span></div>
     </div>
 
     <a-scene
@@ -102,7 +113,7 @@
         embedded
         arjs="sourceType: webcam; debugUIEnabled: false;"
         renderer="logarithmicDepthBuffer: true;"
-        color-detector
+        horse-placer
         stats
     >
         <!-- Luz ambiental -->
@@ -126,131 +137,52 @@
     
     <div class="instructions">
         <h3>Instrucciones:</h3>
-        <p>Busca una superficie verde (césped, papel, etc.) y apunta la cámara hacia ella.</p>
-        <p>El caballo aparecerá automáticamente y permanecerá en esa posición.</p>
+        <p>Mueve tu teléfono lentamente para permitir que la app detecte superficies.</p>
+        <p>El caballo aparecerá automáticamente a 2 metros frente a ti.</p>
         <p>Si te alejas, el caballo permanecerá en su lugar hasta que regreses.</p>
     </div>
 
     <script>
-        // Componente personalizado para detectar color verde
-        AFRAME.registerComponent('color-detector', {
+        // Componente personalizado para colocar el caballo
+        AFRAME.registerComponent('horse-placer', {
             init: function () {
-                // Variables para el estado y seguimiento
-                this.greenSurfaceFound = false;
                 this.horse = document.querySelector('#horse');
                 this.camera = document.querySelector('[camera]');
-                this.canvas = document.createElement('canvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.video = document.querySelector('video');
+                this.horsePlaced = false;
+                this.placementAttempts = 0;
                 
                 // Ocultar el loader cuando la escena esté cargada
                 this.el.addEventListener('loaded', () => {
                     document.querySelector('.arjs-loader').style.display = 'none';
+                    this.updateStatus('Escaneando superficies...', 'warning');
                     
-                    // Esperar a que el video esté listo
+                    // Intentar colocar el caballo después de un breve retraso
                     setTimeout(() => {
-                        this.setupColorDetection();
-                    }, 2000);
+                        this.attemptPlaceHorse();
+                    }, 3000);
                 });
             },
             
-            setupColorDetection: function() {
-                this.video = document.querySelector('video');
-                if (!this.video) {
-                    console.error("No se encontró el elemento de video");
-                    return;
-                }
+            attemptPlaceHorse: function() {
+                if (this.horsePlaced) return;
                 
-                // Configurar dimensiones del canvas
-                this.canvas.width = 160;  // Reducir resolución para mejor rendimiento
-                this.canvas.height = 120;
+                this.placementAttempts++;
                 
-                // Iniciar detección
-                this.detectGreenSurface();
-            },
-            
-            detectGreenSurface: function() {
-                if (!this.video || this.video.readyState !== 4) {
-                    requestAnimationFrame(this.detectGreenSurface.bind(this));
-                    return;
-                }
-                
-                try {
-                    // Dibujar el frame actual del video en el canvas
-                    this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
-                    
-                    // Obtener datos de la imagen
-                    const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                    const data = imageData.data;
-                    
-                    // Contadores para píxeles verdes
-                    let greenPixels = 0;
-                    let centerX = 0;
-                    let centerY = 0;
-                    let count = 0;
-                    
-                    // Analizar píxeles para detectar verde
-                    for (let i = 0; i < data.length; i += 4) {
-                        const r = data[i];
-                        const g = data[i + 1];
-                        const b = data[i + 2];
-                        
-                        // Detectar tonos verdes (rango amplio)
-                        if (g > r + 30 && g > b + 30 && g > 80) {
-                            greenPixels++;
-                            
-                            // Calcular posición del píxel
-                            const pixelIndex = i / 4;
-                            const x = pixelIndex % this.canvas.width;
-                            const y = Math.floor(pixelIndex / this.canvas.width);
-                            
-                            centerX += x;
-                            centerY += y;
-                            count++;
-                        }
-                    }
-                    
-                    // Si se detecta suficiente superficie verde
-                    if (greenPixels > 100 && count > 0) {
-                        centerX = centerX / count;
-                        centerY = centerY / count;
-                        
-                        if (!this.greenSurfaceFound) {
-                            this.placeHorseAtGreenSurface(centerX, centerY);
-                            this.greenSurfaceFound = true;
-                        }
-                        
-                        document.getElementById('status').textContent = 'Superficie verde detectada';
-                    } else {
-                        document.getElementById('status').textContent = 'Buscando superficie verde...';
-                    }
-                    
-                } catch (error) {
-                    console.error("Error en detección de color:", error);
-                }
-                
-                // Continuar el bucle de detección
-                requestAnimationFrame(this.detectGreenSurface.bind(this));
-            },
-            
-            placeHorseAtGreenSurface: function(x, y) {
-                // Hacer visible el caballo
-                this.horse.setAttribute('visible', 'true');
-                
-                // Posicionar el caballo frente a la cámara
+                // Obtener posición y rotación de la cámara
                 const cameraPos = this.camera.getAttribute('position');
                 const cameraRotation = this.camera.getAttribute('rotation');
                 
-                // Calcular posición basada en la cámara
-                const distance = 1.5; // Distancia frente a la cámara
-                const radY = cameraRotation.y * Math.PI / 180;
+                // Calcular posición a 2 metros frente a la cámara
+                const distance = 2.0;
+                const radY = (cameraRotation.y) * Math.PI / 180;
                 
                 const newX = cameraPos.x - Math.sin(radY) * distance;
                 const newZ = cameraPos.z - Math.cos(radY) * distance;
                 
+                // Colocar el caballo en el suelo (Y=0)
                 this.horse.setAttribute('position', {
                     x: newX,
-                    y: cameraPos.y - 0.5, // Un poco más abajo que la cámara
+                    y: 0,
                     z: newZ
                 });
                 
@@ -261,23 +193,67 @@
                     z: 0
                 });
                 
-                // Actualizar panel de debug
-                document.getElementById('coordinates').textContent = 
-                    `X: ${newX.toFixed(2)}, Y: ${(cameraPos.y - 0.5).toFixed(2)}, Z: ${newZ.toFixed(2)}`;
+                // Hacer visible el caballo
+                this.horse.setAttribute('visible', 'true');
+                this.horsePlaced = true;
                 
-                console.log("Caballo colocado en superficie verde");
+                // Actualizar UI
+                this.updateStatus('Caballo colocado correctamente', 'ready');
+                document.getElementById('coordinates').textContent = 
+                    `X: ${newX.toFixed(2)}, Y: 0, Z: ${newZ.toFixed(2)}`;
+                
+                // Calcular distancia
+                const dx = newX - cameraPos.x;
+                const dz = newZ - cameraPos.z;
+                const dist = Math.sqrt(dx*dx + dz*dz);
+                document.getElementById('distance').textContent = `${dist.toFixed(2)} m`;
+                
+                console.log("Caballo colocado a 2 metros");
+            },
+            
+            updateStatus: function(message, type) {
+                document.getElementById('status').textContent = message;
+                const indicator = document.getElementById('statusIndicator');
+                indicator.className = 'status-indicator';
+                if (type === 'ready') {
+                    indicator.classList.add('status-ready');
+                }
+            },
+            
+            tick: function() {
+                if (!this.horsePlaced) return;
+                
+                // Actualizar información de posición en tiempo real
+                const horsePos = this.horse.getAttribute('position');
+                const cameraPos = this.camera.getAttribute('position');
+                
+                document.getElementById('coordinates').textContent = 
+                    `X: ${horsePos.x.toFixed(2)}, Y: ${horsePos.y.toFixed(2)}, Z: ${horsePos.z.toFixed(2)}`;
+                
+                // Calcular distancia entre cámara y caballo
+                const dx = horsePos.x - cameraPos.x;
+                const dz = horsePos.z - cameraPos.z;
+                const dist = Math.sqrt(dx*dx + dz*dz);
+                document.getElementById('distance').textContent = `${dist.toFixed(2)} m`;
             }
         });
 
         // Función para mostrar/ocultar panel de debug
         function toggleDebug() {
             const debugPanel = document.getElementById('debugPanel');
-            debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
+            const button = document.querySelector('.toggle-debug');
+            if (debugPanel.style.display === 'none') {
+                debugPanel.style.display = 'block';
+                button.textContent = 'Ocultar Debug';
+            } else {
+                debugPanel.style.display = 'none';
+                button.textContent = 'Mostrar Debug';
+            }
         }
 
-        // Inicializar panel de debug como oculto
+        // Inicializar
         window.onload = function() {
-            document.getElementById('debugPanel').style.display = 'none';
+            // El panel de debug está visible por defecto
         };
     </script>
 </body>
