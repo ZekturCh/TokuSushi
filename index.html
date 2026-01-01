@@ -75,11 +75,8 @@
 </div>
 
 <script>
-const retos = [
+var retos = [
 
-/* =========================
-   RETOS SIMPLES Y JODA
-========================= */
 "Come una papita de la boca de alguien (consentido)",
 "Haz beber a la persona que te parezca más linda y a la más sana (no digas cuál es cuál)",
 "Elige a alguien para tomar contigo",
@@ -101,9 +98,6 @@ const retos = [
 "Habla como narrador de fútbol por 20 segundos",
 "Di algo bueno de la persona a tu derecha",
 
-/* =========================
-   DECISIONES MALICIOSAS
-========================= */
 "¿Quién aquí se enamora más rápido?",
 "¿Quién desaparece después de la fiesta?",
 "¿Quién miente mejor?",
@@ -125,9 +119,6 @@ const retos = [
 "¿Quién es más intenso?",
 "¿Quién no repetiría esta fiesta?",
 
-/* =========================
-   PICANTES SUAVES (DIVERTIDOS)
-========================= */
 "Señala a alguien que besarías si no hubiera consecuencias",
 "Di con quién no compartirías cama (para dormir 😏)",
 "Elige a alguien para que tome por ti",
@@ -149,78 +140,49 @@ const retos = [
 "¿Quién sería tu cómplice?",
 "¿Quién te da mala espina pero igual te cae bien?",
 
-/* =========================
-   RETOS FÍSICOS LIGHT
-========================= */
 "Haz 10 sentadillas o toma",
 "Mantén equilibrio en un pie 10 segundos",
 "Da una vuelta completa y toma",
-"Haz 5 flexiones (o bebe)",
+"Haz 5 flexiones o bebe",
 "Haz una mueca exagerada",
 "Camina como zombie 10 segundos",
-"Haz un sonido raro, si nadie se ríe tomas, los que se ríen toman.",
-"Aplaude de 5 formas diferentes en 10 segundos o menos",
-"Haz una mini coreografía con la canción que venga",
-"Abraza a alguien hasta que le duele, si eres hombre dejate dibujar",
-"Saluda como si hubieran tenido un rapidín hace años",
-"Haz un brindis, sin nadie se ríe tomas doble por sano",
-"Publica story, con la frase -Estoy sola, así que lo haré-",
+"Haz un sonido raro, si nadie se ríe tomas",
+"Aplaude de 5 formas diferentes en 10 segundos",
+"Haz una mini coreografía",
+"Abraza a alguien hasta que le duela",
+"Saluda como si se conocieran hace años",
+"Haz un brindis, si nadie se ríe tomas doble",
+"Publica una story rara",
 "Haz una risa falsa exagerada",
 "Haz una reverencia elegante",
-"Haz una pose drámatica para una foto",
+"Haz una pose dramática",
 
-/* =========================
-   PREGUNTAS RANDOM
-========================= */
-"Elige a alguien para tomar contigo",
-"¿A quién besarías si estuviera permitido?",
-"Di adjetivos sin mirar, 1 por persona. Aquí hay 2 personas Grandes. 1 persona vaga. 1 persona nigga, etc",
-"¿Quién es más probable que mienta?",
-"¿Quién sería peor en la cárcel?",
-"¿Quién baila peor aquí?",
-"Señala al más intenso",
-"Di una fantasía, no necesariamente sexual",
-"Elige a 2 para tomar, y tú también",
-"¿Con quién no irías a tambo?",
-"¿Quién desaparece después de la fiesta?",
-"¿Quién tiene más levante?",
-"¿Quién se enamora rápido?",
-"¿Quién miente mejor?",
-"¿Quién se pierde primero?",
-
-/* =========================
-   CAOS FINAL
-========================= */
 "Todos toman 1",
 "El último en reaccionar toma",
 "El más serio toma",
 "El más feliz toma",
-"El que tenga el celualr en la mano toma",
+"El que tenga el celular en la mano toma",
 "El más sano toma",
 "El más borracho toma",
 "El que ría primero toma",
-"El que ría último toma",
-
+"El que ría último toma"
 ];
 
-
-// duplicamos hasta llegar a 150
+// duplicar hasta 150
 while (retos.length < 150) {
     retos.push(retos[Math.floor(Math.random() * retos.length)]);
 }
 
 function nuevoReto() {
-    const dado = Math.random() < 0.5 ? 1 : 2;
-    const reto = retos[Math.floor(Math.random() * retos.length)];
+    var dado = Math.random() < 0.5 ? 1 : 2;
+    var reto = retos[Math.floor(Math.random() * retos.length)];
 
-    document.getElementById("dado").textContent =
-        `🎲 Toma ${dado} trago${dado === 1 ? "" : "s"}`;
+    document.getElementById("dado").innerText =
+        "🎲 Toma " + dado + " trago" + (dado === 1 ? "" : "s");
 
-    document.getElementById("reto").textContent = reto;
-
+    document.getElementById("reto").innerText = reto;
     document.getElementById("mensaje").classList.add("visible");
 }
 </script>
-
 </body>
 </html>
