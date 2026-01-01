@@ -1,363 +1,227 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realidad Aumentada - Caballo 3D en el Suelo</title>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #000;
-        }
-        .arjs-loader {
-            height: 100vh;
-            width: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            background-color: rgba(0, 0, 0, 0.8);
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            color: white;
-        }
-        .instructions {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            color: white;
-            background-color: rgba(0, 0, 0, 0.6);
-            padding: 15px;
-            z-index: 100;
-            font-size: 16px;
-            line-height: 1.5;
-        }
-        .loading-text {
-            margin-top: 20px;
-            font-size: 18px;
-            text-align: center;
-        }
-        .loading-spinner {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 2s linear infinite;
-        }
-        .debug-panel {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 14px;
-            z-index: 99;
-        }
-        .toggle-debug {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            z-index: 99;
-            cursor: pointer;
-        }
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-            background-color: #ff9900;
-        }
-        .status-ready {
-            background-color: #4CAF50;
-        }
-        .controls {
-            position: absolute;
-            top: 50px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 99;
-        }
-        .controls button {
-            display: block;
-            margin: 5px 0;
-            padding: 8px 12px;
-            background: #4285f4;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Bola de Cristal 🔮</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+    body {
+        margin: 0;
+        background: black;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Arial', sans-serif;
+        overflow: hidden;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .bola {
+        width: 280px;
+        height: 280px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #b15cff, #3a005f 60%, #000 85%);
+        box-shadow:
+            0 0 40px rgba(170, 90, 255, 0.6),
+            inset -20px -20px 40px rgba(0,0,0,0.8);
+    }
+
+    .mensaje {
+        position: absolute;
+        bottom: 8%;
+        width: 90%;
+        max-width: 600px;
+        text-align: center;
+        color: #fff;
+        opacity: 0;
+        transition: opacity 0.4s;
+    }
+
+    .mensaje.visible {
+        opacity: 1;
+    }
+
+    .dado {
+        font-size: 28px;
+        margin-bottom: 10px;
+        color: #c58bff;
+    }
+
+    .reto {
+        font-size: 20px;
+        line-height: 1.4;
+    }
+
+    .hint {
+        position: absolute;
+        top: 10px;
+        font-size: 12px;
+        color: #666;
+    }
+</style>
 </head>
-<body>
-    <div class="arjs-loader">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Cargando realidad aumentada...</div>
-    </div>
-    
-    <button class="toggle-debug" onclick="toggleDebug()">Ocultar Debug</button>
-    <div class="debug-panel" id="debugPanel">
-        <div><span class="status-indicator" id="statusIndicator"></span>Estado: <span id="status">Inicializando...</span></div>
-        <div>Posición: <span id="coordinates">X: 0, Y: 0, Z: 0</span></div>
-        <div>Distancia: <span id="distance">0 m</span></div>
-        <div>Escala: <span id="scale">1.5</span></div>
-    </div>
 
-    <div class="controls">
-        <p>Ajustar modelo:</p>
-        <button onclick="adjustScale(0.1)">+ Grande</button>
-        <button onclick="adjustScale(-0.1)">- Pequeño</button>
-        <button onclick="adjustPosition(0.1)">+ Cerca</button>
-        <button onclick="adjustPosition(-0.1)">- Lejos</button>
-        <button onclick="resetPosition()">Resetear</button>
-    </div>
+<body onclick="nuevoReto()">
 
-    <a-scene
-        vr-mode-ui="enabled: false"
-        embedded
-        arjs="sourceType: webcam; debugUIEnabled: false;"
-        renderer="logarithmicDepthBuffer: true;"
-        horse-placer
-        stats
-    >
-        <!-- Luz ambiental -->
-        <a-light type="ambient" color="#ccc" intensity="0.8"></a-light>
-        <!-- Luz direccional -->
-        <a-light type="directional" color="#fff" intensity="0.6" position="1 2 1"></a-light>
-        
-        <!-- Modelo 3D del caballo con animación -->
-        <a-entity
-            id="horse"
-            position="0 -10 0"  <!-- Inicialmente oculto -->
-            scale="1.5 1.5 1.5"  <!-- Escala aumentada significativamente -->
-            animation-mixer="clip: *; loop: repeat"
-            gltf-model="exp.glb"
-            visible="false"
-        ></a-entity>
-        
-        <!-- Cámara para realidad aumentada -->
-        <a-entity camera></a-entity>
-    </a-scene>
-    
-    <div class="instructions">
-        <h3>Instrucciones:</h3>
-        <p>Mueve tu teléfono lentamente para permitir que la app detecte superficies.</p>
-        <p>El caballo aparecerá automáticamente a 1.5 metros frente a ti.</p>
-        <p>Usa los controles para ajustar el tamaño y posición si es necesario.</p>
-    </div>
+<div class="hint">Haz click en cualquier lugar</div>
+<div class="bola"></div>
 
-    <script>
-        // Variables globales para control
-        let currentDistance = 1.5; // Más cerca que antes (2.0)
-        let currentScale = 1.5; // Más grande que antes (0.02)
+<div class="mensaje" id="mensaje">
+    <div class="dado" id="dado"></div>
+    <div class="reto" id="reto"></div>
+</div>
 
-        // Componente personalizado para colocar el caballo
-        AFRAME.registerComponent('horse-placer', {
-            init: function () {
-                this.horse = document.querySelector('#horse');
-                this.camera = document.querySelector('[camera]');
-                this.horsePlaced = false;
-                this.placementAttempts = 0;
-                
-                // Ocultar el loader cuando la escena esté cargada
-                this.el.addEventListener('loaded', () => {
-                    document.querySelector('.arjs-loader').style.display = 'none';
-                    this.updateStatus('Escaneando superficies...', 'warning');
-                    
-                    // Intentar colocar el caballo después de un breve retraso
-                    setTimeout(() => {
-                        this.attemptPlaceHorse();
-                    }, 2000);
-                });
-            },
-            
-            attemptPlaceHorse: function() {
-                if (this.horsePlaced) return;
-                
-                this.placementAttempts++;
-                
-                // Obtener posición y rotación de la cámara
-                const cameraPos = this.camera.getAttribute('position');
-                const cameraRotation = this.camera.getAttribute('rotation');
-                
-                // Calcular posición a una distancia personalizable frente a la cámara
-                const radY = (cameraRotation.y) * Math.PI / 180;
-                
-                const newX = cameraPos.x - Math.sin(radY) * currentDistance;
-                const newZ = cameraPos.z - Math.cos(radY) * currentDistance;
-                
-                // Colocar el caballo en el suelo (Y=0)
-                this.horse.setAttribute('position', {
-                    x: newX,
-                    y: 0,
-                    z: newZ
-                });
-                
-                // Ajustar escala
-                this.horse.setAttribute('scale', {
-                    x: currentScale,
-                    y: currentScale,
-                    z: currentScale
-                });
-                
-                // Rotar el caballo para que mire hacia la cámara
-                this.horse.setAttribute('rotation', {
-                    x: 0,
-                    y: cameraRotation.y + 180,
-                    z: 0
-                });
-                
-                // Hacer visible el caballo
-                this.horse.setAttribute('visible', 'true');
-                this.horsePlaced = true;
-                
-                // Actualizar UI
-                this.updateStatus('Caballo colocado correctamente', 'ready');
-                document.getElementById('coordinates').textContent = 
-                    `X: ${newX.toFixed(2)}, Y: 0, Z: ${newZ.toFixed(2)}`;
-                document.getElementById('scale').textContent = currentScale;
-                
-                // Calcular distancia
-                const dx = newX - cameraPos.x;
-                const dz = newZ - cameraPos.z;
-                const dist = Math.sqrt(dx*dx + dz*dz);
-                document.getElementById('distance').textContent = `${dist.toFixed(2)} m`;
-                
-                console.log("Caballo colocado a", currentDistance, "metros con escala", currentScale);
-            },
-            
-            updateStatus: function(message, type) {
-                document.getElementById('status').textContent = message;
-                const indicator = document.getElementById('statusIndicator');
-                indicator.className = 'status-indicator';
-                if (type === 'ready') {
-                    indicator.classList.add('status-ready');
-                }
-            },
-            
-            tick: function() {
-                if (!this.horsePlaced) return;
-                
-                // Actualizar información de posición en tiempo real
-                const horsePos = this.horse.getAttribute('position');
-                const cameraPos = this.camera.getAttribute('position');
-                
-                document.getElementById('coordinates').textContent = 
-                    `X: ${horsePos.x.toFixed(2)}, Y: ${horsePos.y.toFixed(2)}, Z: ${horsePos.z.toFixed(2)}`;
-                
-                // Calcular distancia entre cámara y caballo
-                const dx = horsePos.x - cameraPos.x;
-                const dz = horsePos.z - cameraPos.z;
-                const dist = Math.sqrt(dx*dx + dz*dz);
-                document.getElementById('distance').textContent = `${dist.toFixed(2)} m`;
-            }
-        });
+<script>
+const retos = [
+const retos = [
 
-        // Función para mostrar/ocultar panel de debug
-        function toggleDebug() {
-            const debugPanel = document.getElementById('debugPanel');
-            const button = document.querySelector('.toggle-debug');
-            if (debugPanel.style.display === 'none') {
-                debugPanel.style.display = 'block';
-                button.textContent = 'Ocultar Debug';
-            } else {
-                debugPanel.style.display = 'none';
-                button.textContent = 'Mostrar Debug';
-            }
-        }
+/* =========================
+   RETOS SIMPLES Y JODA
+========================= */
+"Come una papita de la boca de alguien (consentido)",
+"Haz beber a la persona que te parezca más linda y a la más sana (no digas cuál es cuál)",
+"Elige a alguien para tomar contigo",
+"Toma un trago sin usar las manos",
+"Cambia de asiento con alguien al azar",
+"Habla como si estuvieras borracho por 1 ronda",
+"Haz un brindis absurdo",
+"Da un abrazo grupal rápido",
+"Deja que alguien revise tu galería 10 segundos",
+"Imita a alguien del grupo (sin decir quién)",
+"Di una verdad incómoda pero corta",
+"Toma mirando fijamente a alguien",
+"Sirve el siguiente trago",
+"Camina como modelo 10 segundos",
+"Haz una pose ridícula para foto",
+"Cuenta tu peor resaca en 1 frase",
+"Hazle beber a alguien sin explicar por qué",
+"Choca vasos con todos",
+"Habla como narrador de fútbol por 20 segundos",
+"Di algo bueno de la persona a tu derecha",
 
-        // Funciones para ajustar el modelo
-        function adjustScale(value) {
-            const horse = document.querySelector('#horse');
-            const currentScale = horse.getAttribute('scale');
-            const newScale = currentScale.x + value;
-            
-            // Limitar escala mínima y máxima
-            if (newScale >= 0.1 && newScale <= 5) {
-                horse.setAttribute('scale', {x: newScale, y: newScale, z: newScale});
-                document.getElementById('scale').textContent = newScale.toFixed(1);
-            }
-        }
-        
-        function adjustPosition(value) {
-            const horse = document.querySelector('#horse');
-            const camera = document.querySelector('[camera]');
-            const cameraPos = camera.getAttribute('position');
-            const cameraRotation = camera.getAttribute('rotation');
-            const horsePos = horse.getAttribute('position');
-            
-            // Calcular dirección hacia la cámara
-            const radY = (cameraRotation.y) * Math.PI / 180;
-            const dirX = -Math.sin(radY);
-            const dirZ = -Math.cos(radY);
-            
-            // Mover el caballo en la dirección correcta
-            const newX = horsePos.x + dirX * value;
-            const newZ = horsePos.z + dirZ * value;
-            
-            horse.setAttribute('position', {x: newX, y: horsePos.y, z: newZ});
-            
-            // Actualizar distancia mostrada
-            const dx = newX - cameraPos.x;
-            const dz = newZ - cameraPos.z;
-            const dist = Math.sqrt(dx*dx + dz*dz);
-            document.getElementById('distance').textContent = `${dist.toFixed(2)} m`;
-        }
-        
-        function resetPosition() {
-            const horse = document.querySelector('#horse');
-            const camera = document.querySelector('[camera]');
-            const cameraPos = camera.getAttribute('position');
-            const cameraRotation = camera.getAttribute('rotation');
-            
-            // Volver a la posición original (1.5 metros frente a la cámara)
-            const radY = (cameraRotation.y) * Math.PI / 180;
-            const newX = cameraPos.x - Math.sin(radY) * 1.5;
-            const newZ = cameraPos.z - Math.cos(radY) * 1.5;
-            
-            horse.setAttribute('position', {x: newX, y: 0, z: newZ});
-            
-            // Restablecer escala
-            horse.setAttribute('scale', {x: 1.5, y: 1.5, z: 1.5});
-            document.getElementById('scale').textContent = "1.5";
-            
-            // Actualizar UI
-            const dx = newX - cameraPos.x;
-            const dz = newZ - cameraPos.z;
-            const dist = Math.sqrt(dx*dx + dz*dz);
-            document.getElementById('distance').textContent = `${dist.toFixed(2)} m`;
-        }
+/* =========================
+   DECISIONES MALICIOSAS
+========================= */
+"¿Quién aquí se enamora más rápido?",
+"¿Quién desaparece después de la fiesta?",
+"¿Quién miente mejor?",
+"¿Quién aguanta menos alcohol?",
+"¿Quién sería peor roommate?",
+"¿Quién se levanta más gente?",
+"¿Quién nunca pone para el trago?",
+"¿Quién llega tarde siempre?",
+"¿Quién sería el primero en perder el celular?",
+"¿Quién sería mal jefe?",
+"¿Quién se hace el sano pero no lo es?",
+"¿Quién habla más cuando toma?",
+"¿Quién gasta más en la noche?",
+"¿Quién se iría sin avisar?",
+"¿Quién se enamora borracho?",
+"¿Quién exagera todo?",
+"¿Quién baila peor?",
+"¿Quién se pierde primero?",
+"¿Quién es más intenso?",
+"¿Quién no repetiría esta fiesta?",
 
-        // Inicializar
-        window.onload = function() {
-            // El panel de debug está visible por defecto
-        };
-    </script>
+/* =========================
+   PICANTES SUAVES (DIVERTIDOS)
+========================= */
+"Señala a alguien que besarías si no hubiera consecuencias",
+"Di con quién no compartirías cama (para dormir 😏)",
+"Elige a alguien para que tome por ti",
+"¿A quién stalkeaste alguna vez?",
+"Di quién te parece más atractivo aquí",
+"¿Con quién viajarías solo?",
+"¿Quién tiene más levante?",
+"¿Quién tiene cara de infiel?",
+"¿Quién te da más curiosidad?",
+"¿Quién sería tu plan B?",
+"¿Quién te cae mejor ahora que antes?",
+"¿Quién te parece más peligroso?",
+"¿Quién es más probable que rompa algo hoy?",
+"¿Quién tendría más historias ocultas?",
+"¿Quién se hace el tranquilo?",
+"¿Quién se emborracha más rápido?",
+"¿Quién sería buena mala influencia?",
+"¿Quién no debería manejar nunca?",
+"¿Quién sería tu cómplice?",
+"¿Quién te da mala espina pero igual te cae bien?",
+
+/* =========================
+   RETOS FÍSICOS LIGHT
+========================= */
+"Haz 10 sentadillas o toma",
+"Mantén equilibrio en un pie 10 segundos",
+"Da una vuelta completa y toma",
+"Haz 5 flexiones (o bebe)",
+"Haz una mueca exagerada",
+"Camina como zombie 10 segundos",
+"Haz un sonido raro, si nadie se ríe tomas, los que se ríen toman.",
+"Aplaude de 5 formas diferentes en 10 segundos o menos",
+"Haz una mini coreografía con la canción que venga",
+"Abraza a alguien hasta que le duele, si eres hombre dejate dibujar",
+"Saluda como si hubieran tenido un rapidín hace años",
+"Haz un brindis, sin nadie se ríe tomas doble por sano",
+"Publica story, con la frase -Estoy sola, así que lo haré-",
+"Haz una risa falsa exagerada",
+"Haz una reverencia elegante",
+"Haz una pose drámatica para una foto",
+
+/* =========================
+   PREGUNTAS RANDOM
+========================= */
+"Elige a alguien para tomar contigo",
+"¿A quién besarías si estuviera permitido?",
+"Di adjetivos sin mirar, 1 por persona. Aquí hay 2 personas Grandes. 1 persona vaga. 1 persona nigga, etc",
+"¿Quién es más probable que mienta?",
+"¿Quién sería peor en la cárcel?",
+"¿Quién baila peor aquí?",
+"Señala al más intenso",
+"Di una fantasía, no necesariamente sexual",
+"Elige a 2 para tomar, y tú también",
+"¿Con quién no irías a tambo?",
+"¿Quién desaparece después de la fiesta?",
+"¿Quién tiene más levante?",
+"¿Quién se enamora rápido?",
+"¿Quién miente mejor?",
+"¿Quién se pierde primero?",
+
+/* =========================
+   CAOS FINAL
+========================= */
+"Todos toman 1",
+"El último en reaccionar toma",
+"El más serio toma",
+"El más feliz toma",
+"El que tenga el celualr en la mano toma",
+"El más sano toma",
+"El más borracho toma",
+"El que ría primero toma",
+"El que ría último toma",
+
+];
+
+
+// duplicamos hasta llegar a 150
+while (retos.length < 150) {
+    retos.push(retos[Math.floor(Math.random() * retos.length)]);
+}
+
+function nuevoReto() {
+    const dado = Math.random() < 0.5 ? 1 : 2;
+    const reto = retos[Math.floor(Math.random() * retos.length)];
+
+    document.getElementById("dado").textContent =
+        `🎲 Toma ${dado} trago${dado === 1 ? "" : "s"}`;
+
+    document.getElementById("reto").textContent = reto;
+
+    document.getElementById("mensaje").classList.add("visible");
+}
+</script>
+
 </body>
 </html>
