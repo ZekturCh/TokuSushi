@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Juego del Impostor</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #090909;
+      color: white;
+      min-height: 100vh;
+      padding: 18px;
+    }
+
+    .app {
+      max-width: 420px;
+      margin: auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    p {
+      color: #aaa;
+      text-align: center;
+      margin-bottom: 22px;
+    }
+
+    .card {
+      background: #151515;
+      border: 1px solid #282828;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 20px rgba(255,0,0,.08);
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      color: #ddd;
+      font-size: .95rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #333;
+      background: #080808;
+      color: white;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 15px;
+      font-size: 1rem;
+      font-weight: bold;
+      margin-top: 14px;
+      cursor: pointer;
+      color: white;
+      background: #b00020;
+    }
+
+    button.secondary {
+      background: #252525;
+    }
+
+    .hidden { display: none; }
+
+    .player-title {
+      text-align: center;
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+    }
+
+    .role-box {
+      min-height: 190px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: 18px;
+      background: #080808;
+      border: 1px dashed #333;
+      padding: 20px;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .impostor {
+      color: #ff3355;
+    }
+
+    .normal {
+      color: #39ff88;
+    }
+
+    .timer {
+      text-align: center;
+      font-size: 2rem;
+      margin-top: 12px;
+      color: #fff;
+    }
+
+    .small {
+      font-size: .85rem;
+      color: #888;
+      text-align: center;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <section id="setup">
+    <h1>Impostor</h1>
+    <p>Configura la partida y pasa el celular jugador por jugador.</p>
+
+    <div class="card">
+      <label>Cantidad de jugadores</label>
+      <input type="number" id="playersCount" min="3" value="6">
+
+      <label>Cantidad de impostores</label>
+      <input type="number" id="impostorsCount" min="1" value="1">
+
+      <label>Palabra secreta</label>
+      <input type="text" id="secretWord" placeholder="Ej: Pizza, Playa, Cine">
+
+      <label>Tiempo para ver rol, en segundos</label>
+      <input type="number" id="viewTime" min="2" value="5">
+
+      <button onclick="startGame()">Crear partida</button>
+    </div>
+  </section>
+
+  <section id="game" class="hidden">
+    <div class="card">
+      <div class="player-title" id="playerTitle">Jugador 1</div>
+
+      <div class="role-box" id="roleBox">
+        Toca el botón para ver tu rol
+      </div>
+
+      <div class="timer" id="timer"></div>
+
+      <button id="revealBtn" onclick="revealRole()">Ver mi rol</button>
+      <button id="nextBtn" class="secondary hidden" onclick="nextPlayer()">Siguiente jugador</button>
+
+      <div class="small">
+        No dejes que otros vean tu pantalla.
+      </div>
+    </div>
+  </section>
+
+  <section id="end" class="hidden">
+    <h1>Listo</h1>
+    <p>Todos ya vieron su rol. Ahora discutan y encuentren al impostor.</p>
+
+    <div class="card">
+      <button onclick="resetGame()">Nueva partida</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  let roles = [];
+  let currentPlayer = 0;
+  let viewTime = 5;
+  let timerInterval;
+
+  function startGame() {
+    const players = parseInt(document.getElementById("playersCount").value);
+    const impostors = parseInt(document.getElementById("impostorsCount").value);
+    const word = document.getElementById("secretWord").value.trim();
+    viewTime = parseInt(document.getElementById("viewTime").value);
+
+    if (!players || players < 3) {
+      alert("Mínimo deben ser 3 jugadores.");
+      return;
+    }
+
+    if (!impostors || impostors < 1 || impostors >= players) {
+      alert("La cantidad de impostores debe ser menor que la cantidad de jugadores.");
+      return;
+    }
+
+    if (!word) {
+      alert("Escribe una palabra secreta.");
+      return;
+    }
+
+    roles = [];
+
+    for (let i = 0; i < impostors; i++) {
+      roles.push({ type: "impostor", text: "Eres el IMPOSTOR" });
+    }
+
+    for (let i = impostors; i < players; i++) {
+      roles.push({ type: "normal", text: "Palabra secreta:<br>" + word });
+    }
+
+    roles = shuffle(roles);
+    currentPlayer = 0;
+
+    document.getElementById("setup").classList.add("hidden");
+    document.getElementById("game").classList.remove("hidden");
+
+    preparePlayer();
+  }
+
+  function preparePlayer() {
+    clearInterval(timerInterval);
+
+    document.getElementById("playerTitle").innerText = "Jugador " + (currentPlayer + 1);
+    document.getElementById("roleBox").innerHTML = "Toca el botón para ver tu rol";
+    document.getElementById("roleBox").className = "role-box";
+    document.getElementById("timer").innerText = "";
+
+    document.getElementById("revealBtn").classList.remove("hidden");
+    document.getElementById("nextBtn").classList.add("hidden");
+  }
+
+  function revealRole() {
+    const role = roles[currentPlayer];
+
+    document.getElementById("roleBox").innerHTML = role.text;
+    document.getElementById("roleBox").classList.add(role.type);
+
+    document.getElementById("revealBtn").classList.add("hidden");
+
+    let timeLeft = viewTime;
+    document.getElementById("timer").innerText = timeLeft;
+
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      document.getElementById("timer").innerText = timeLeft;
+
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        hideRole();
+      }
+    }, 1000);
+  }
+
+  function hideRole() {
+    document.getElementById("roleBox").innerHTML = "Rol oculto";
+    document.getElementById("roleBox").className = "role-box";
+    document.getElementById("timer").innerText = "";
+    document.getElementById("nextBtn").classList.remove("hidden");
+  }
+
+  function nextPlayer() {
+    currentPlayer++;
+
+    if (currentPlayer >= roles.length) {
+      document.getElementById("game").classList.add("hidden");
+      document.getElementById("end").classList.remove("hidden");
+      return;
+    }
+
+    preparePlayer();
+  }
+
+  function resetGame() {
+    roles = [];
+    currentPlayer = 0;
+
+    document.getElementById("end").classList.add("hidden");
+    document.getElementById("setup").classList.remove("hidden");
+  }
+
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+</script>
+
+</body>
+</html>
